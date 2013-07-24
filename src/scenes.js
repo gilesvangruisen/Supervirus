@@ -7,6 +7,8 @@ Crafty.scene('Game', function() {
   Crafty.e('PassiveMob');
   Crafty.e('PassiveMob');
   Crafty.e('PassiveMob');
+  Crafty.e('PassiveMob');
+  Crafty.e('PassiveMob');
 });
  
 // Loading scene
