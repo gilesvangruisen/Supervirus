@@ -1,11 +1,9 @@
 Game = {
  
-  // The total width of the game screen. Since our grid takes up the entire screen
-  //  this is just the width of a tile times the width of the grid
+  // The total width of the game screen.
   width: 800,
  
-  // The total height of the game screen. Since our grid takes up the entire screen
-  //  this is just the height of a tile times the height of the grid
+  // The total height of the game screen. 
   height: 600,
  
   // Initialize and start our game
@@ -16,7 +14,16 @@ Game = {
  
     // Simply start the "Loading" scene to get things going
     Crafty.scene('Loading');
-  }
+  },
+  
+  checkIfWon: function() {
+	  console.log(this.mobArray.length);
+	  if (this.mobArray.length == 0) {
+		  console.log("now i'm confused");
+		  Crafty.scene('Victory');
+	  }
+  },
+  
 }
  
 $text_css = {
