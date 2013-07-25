@@ -43,6 +43,26 @@ Crafty.c('HitCircle', {
 		this.collision(this.hitCircle);
 	},
 });
+
+Crafty.c('HeadsUpDisplay', {
+	init: function() {
+		this.requires('Actor, Text')
+		.attr({ x: Crafty.viewport.x + 20, y: Crafty.viewport.y + 20, score: 0 })
+		.text("Score: " + this.score)
+	},
+	
+	scoreUp: function(amount) {
+		this.score += amount;
+		this.text("Score: " + this.score);
+		this.recenter();
+	},
+	
+	recenter: function() {
+		this.x = -Crafty.viewport.x + 20;
+		this.y = -Crafty.viewport.y + 20;
+	}
+	
+});
  
 // This is the player-controlled character
 Crafty.c('PlayerCharacter', {
@@ -58,7 +78,7 @@ Crafty.c('PlayerCharacter', {
 		this.requires('Actor, Fourway, HitCircle, spr_player, Keyboard')
 		.attr({ x: Game.width/2 - this._w/2, y: Game.height/2 - this._h/2 }) // .attr initializes fields in this entity object
 		.radiusFunction("this._w/2") // initiate HitCircle and tell it how to calculate the radius from now on
-		.fourway(4) // initialize the keyboard input motion system with a speed in pixels per tick
+		.fourway(5) // initialize the keyboard input motion system with a speed in pixels per tick
 		.onHit('PassiveMob', this.hitPassiveMob) // translation: when we collide with an entity called 'PassiveMob' execute function 'this.hitPassiveMob'
 	
 		// init width and height (defaults to sprite size which is much bigger)
@@ -88,18 +108,59 @@ Crafty.c('PlayerCharacter', {
 	
 	// when player hits a passive mob, increase width and height and redraw hitcircle, and remove passive mob
 	hitPassiveMob: function(data) {
+		
+		Crafty("HeadsUpDisplay").scoreUp(1);
+		
 		passiveMob = data[0].obj; // this is just how we access what we hit with the onHit function
 		passiveMob.playerCollided(); // let the collided mob know we hit them so they can disappear or whatever
 		
 		// increase size of player.  the decrease of x and y is to show growth from all sides, not just expansion of the bottom right of the sprite
-		this.x -= 2;
-		this.y -= 2;
-		this._w = this._w + 4;
-		this._h = this._h + 4;
+		this.x -= .5;
+		this.y -= .5;
+		this._w = this._w + 1;
+		this._h = this._h + 1;
 		
 		// new _w and _h, gotta redraw the hit circle for collision detection
 		this.redrawHitCircle();
 		this.hitBoundary();
+		
+		this.customZoom(0.995);
+		
+		// var xshould = Crafty.viewport.x;
+		// var yshould = Crafty.viewport.y;
+		// 
+		// console.log("");
+		// console.log("BEFORE: " + Crafty.viewport.x + ", " + Crafty.viewport.y + " --- " + Crafty.viewport.width + ", " + Crafty.viewport.height);
+		// 
+		// Crafty.viewport.zoom(.99, this.center("x"), this.center("y"), 5);
+		// 		
+		// Crafty.viewport.scale(.99);
+		// 
+		// console.log(Crafty(0).toString());
+		// 
+		// Crafty.viewport.x = xshould;
+		// Crafty.viewport.y = yshould;
+		// Crafty.viewport.width = Game.width;
+		// Crafty.viewport.height = Game.height;
+		// 
+		// Crafty.viewport.reload();
+
+		// console.log("AFTER: " + Crafty.viewport.x + ", " + Crafty.viewport.y + " --- " + Crafty.viewport.width + ", " + Crafty.viewport.height);
+	},
+	
+	customZoom: function(factor) {
+		Crafty("2D").each( function(i) {
+			// console.log("");
+			// console.log(this.x + ", " + this.y + ", " + factor + ", " + this._w + ", " + this._h);
+			this.x += (1 - factor) * this._w/2;
+			this.y += (1 - factor) * this._h/2;
+			this._w *= factor;
+			this._h *= factor;
+			// console.log(this.x + ", " + this.y + ", " + factor + ", " + this._w + ", " + this._h);
+		});
+		Crafty("HitCircle").each( function(i) {
+			this.redrawHitCircle();
+		});
 	},
 	
 	// for some reason when we hit the boundary we get a permanent movement value in the opposite direction, so this resets motion based on keyboard input
@@ -125,6 +186,7 @@ Crafty.c('PlayerCharacter', {
 	
 	// each frame, check if we're colliding with the boundary
 	hitBoundary: function() {
+		
 		// this is how we locate an entity with Crafty.  If there are multiple of these entities, an array is returned (only gonna be 1 boundary tho)
 		var boundary = Crafty("Boundary"); 
 		
@@ -243,9 +305,13 @@ Crafty.c('PlayerCharacter', {
 // edible passive mobs. 
 Crafty.c('PassiveMob', {
 	init: function() {
-		this.requires('Actor, HitCircle, spr_passivemob')
-		.attr({ x: 200, y: 200, getAwayFromEdge: 0, accel: .2, maxSpeed: 3, intendedMovementX: 0, intendedMovementY: 0, movementX: 0, movementY: 0})
-		.radiusFunction("5");
+		this.requires('Actor, HitCircle, spr_mob')
+		.attr({ x: 200, y: 200, getAwayFromEdge: 0, accel: .05, maxSpeed: 4, intendedMovementX: 0, intendedMovementY: 0, movementX: 0, movementY: 0})
+		.radiusFunction("this._w/2");
+		
+		this._w = 32;
+		this._h = 32;
+		this.redrawHitCircle();
 		
 		// start game by randomizing position
 		this.playerCollided();
@@ -328,13 +394,56 @@ Crafty.c('PassiveMob', {
 		var player = Crafty("PlayerCharacter");
 		
 		// find the square bounded by the boundary's hitCircle to know the outer bounds of where mob can spawn
-		var spread = boundary.center("x") - boundary.hitCircle.radius / Math.sqrt(2);
+		var spread = boundary.hitCircle.radius / Math.sqrt(2);
 		
-		// make sure this doesn't spawn already colliding with character
+		var proposedX;
+		var proposedY;
+		var withinFrame;
+		
+		var viewportRect = {
+			x: -Crafty.viewport.x,
+			y: -Crafty.viewport.y,
+			w: Game.width,
+			h: Game.height
+		}
+		
+		var spreadRect = {
+			x: boundary.center("x") - spread,
+			y: boundary.center("y") - spread,
+			w: spread*2,
+			h: spread*2
+		}
+		
+		if ( Util.rectContainedInRect(spreadRect, viewportRect) ) {
+			// if(Game.isTrue) {
+			Game.mobArray.splice(Game.mobArray.indexOf(this),1);
+			this.destroy();
+			Game.checkIfWon();
+			return;
+		}
+		
+		var angle;
+		var mag;
+		
 		do {
-			var proposedX = Crafty.math.randomNumber( boundary.center("x") - spread , boundary.center("x") + spread );
-			var proposedY = Crafty.math.randomNumber( boundary.center("y") - spread , boundary.center("y") + spread );
-		} while(proposedX > player.x - this._w && proposedX < player.x + this._w + player._w && proposedY > player.y - this._h && proposedY < player.y + player._h + this._h)
+			
+			// find vector to random spot in boundary
+			angle = 2* Math.PI * Math.random();
+			mag = Math.random() * boundary.hitCircle.radius;
+			proposedX = mag * Math.cos(angle);
+			proposedY = mag * Math.sin(angle);			
+			
+			// add to center of boundary
+			proposedX += boundary.center('x');
+			proposedY += boundary.center('y');
+			
+			if (proposedX > -Crafty.viewport.x && proposedX < -Crafty.viewport.x + Crafty.viewport.width && proposedY > -Crafty.viewport.y && proposedY < -Crafty.viewport.y + Crafty.viewport.height) {
+				withinFrame = true;
+			}
+			else {
+				withinFrame = false;
+			}
+		} while(withinFrame)
 		
 		this.x = proposedX;
 		this.y = proposedY;
@@ -373,8 +482,8 @@ Crafty.c('Boundary', {
 		.attr({ x: Game.width/2 - this._w/2, y: Game.height/2 - this._h/2})
 		.radiusFunction("this._w/2 - this._w/58");
 			
-		this._w = 800;
-		this._h = 800;
+		this._w = 1200;
+		this._h = 1200;
 		this.x = Game.width/2 - this._w/2;
 		this.y = Game.height/2 - this._h/2;
 			

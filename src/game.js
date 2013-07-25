@@ -14,7 +14,16 @@ Game = {
  
     // Simply start the "Loading" scene to get things going
     Crafty.scene('Loading');
-  }
+  },
+  
+  checkIfWon: function() {
+	  console.log(this.mobArray.length);
+	  if (this.mobArray.length == 0) {
+		  console.log("now i'm confused");
+		  Crafty.scene('Victory');
+	  }
+  },
+  
 }
  
 $text_css = {
